@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Python Code Editor</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Brython for Python in the browser -->
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/brython@3.9.5/brython.min.js"></script>
+    <!-- Font Awesome for icons -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/js/all.min.js"></script>
+    <style>
+        body {
+            font-family: "Playwrite DE Grund", cursive;;
+        }
+        @import url('https://fonts.googleapis.com/css2?family=Playwrite+DE+Grund:wght@100..400&display=swap');
+        /* Custom styles for line numbers */
+        .editor-container {
+            display: flex;
+            height: 100%; /* Ensure it takes full height */
+        }
+        .line-numbers {
+            background-color: transparent; /* Make background transparent */
+            color: #a1a1aa; /* Light gray color for line numbers */
+            padding: 8px; /* Space around line numbers */
+            text-align: right; /* Align numbers to the right */
+            user-select: none; /* Prevent text selection */
+            overflow-y: auto; /* Allow scrolling if necessary */
+            width: 50px; /* Fixed width for line numbers */
+            font-family: monospace; /* Monospace font for line numbers */
+        }
+        .line-numbers span {
+            display: block; /* Display line numbers vertically */
+            height: 1em; /* Set height for each line number */
+        }
+        textarea {
+
+            resize: none; /* Disable textarea resizing */
+            width: 100%; /* Full width */
+            height: auto; /* Allow height to adjust automatically */
+            overflow: hidden; /* Hide overflow */
+            background-color: #1f2937; /* Match editor background */
+        }
+        /* Modal styles */
+        .modal {
+            display: none; /* Hidden by default */
+            position: fixed;
+            z-index: 50;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0, 0, 0, 0.8); /* Black with transparency */
+        }
+        .modal-content {
+            background-color: #2d3748; /* Darker background */
+            margin: 15% auto; /* 15% from the top and centered */
+            padding: 20px;
+            border: 1px solid #ccc;
+            width: 80%; /* Width of the modal */
+            max-width: 600px; /* Max width */
+            border-radius: 8px; /* Rounded corners */
+        }
+
+textarea {
+  font-family: "Playwrite DE Grund", cursive;
+           width: 100%; /* Full width */
+            height: auto; /* Allow height to adjust automatically */
+            overflow: hidden; /* Hide overflow */
+            background-color: #1f2937; /* Match editor ba
+}
+    </style>
+</head>
+<body onload="brython()" class="bg-gray-900 text-white min-h-screen flex flex-col">
+
+    <!-- Header -->
+    <div class="w-full bg-gray-800 p-4 flex justify-between items-center">
+        <span class="text-xl font-semibold">Py2Droid </span>
+        <!-- Three-dot menu -->
+        <button id="menu-button" onclick="toggleModal()" class="text-white text-2xl">
+            <i class="fas fa-ellipsis-v"></i>
+        </button>
+    </div>
+
+    <!-- Output Div (Hidden by Default) -->
+    <div id="output-div" class="fixed inset-0 bg-black text-white p-4 hidden flex-col">
+        <!-- Output Header with Close Button -->
+        <div class="w-full flex justify-between items-center p-2">
+            <h2 class="text-lg font-semibold">Output:</h2>
+            <button id="close-output" class="text-red-500 text-2xl" onclick="closeOutput()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <!-- Output Content Area -->
+        <div id="output" class="w-full h-full bg-gray-900 text-green-500 p-4 rounded-md font-mono overflow-y-auto border border-gray-700"></div>
+    </div>
+
+    <!-- Editor Div (Code Area) Full-Screen -->
+    <div id="code-editor" class="w-full h-full flex flex-col">
+        <!-- Run Button -->
+        <div class="bg-gray-800 p-4 flex justify-center">
+            <button id="run-button" onclick="runCode()" class="bg-indigo-500 hover:bg-indigo-600 text-white py-2 px-6 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                Run Code
+            </button>
+        </div>
+
+        <!-- Code Editor with Line Numbers -->
+        <div class="flex-1 p-4 editor-container">
+            <div id="line-numbers" class="line-numbers"></div>
+            <textarea id="editor" class="bg-gray-800 text-white p-4 rounded-md font-mono border border-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500" spellcheck="false" placeholder="Write your Python code here..." oninput="updateLineNumbers(); adjustHeight();">print("Hello, World!")</textarea>
+        </div>
+    </div>
+
+    <!-- Modal for Downloading Modules -->
+    <div id="modal" class="modal">
+        <div class="modal-content">
+            <span class="text-xl font-semibold mb-2">Download Modules</span>
+            <div class="mb-4">
+                <button onclick="downloadModule('Flask')" class="bg-indigo-500 hover:bg-indigo-600 text-white py-2 px-4 rounded-md mr-2">Flask</button>
+                <button onclick="downloadModule('Django')" class="bg-indigo-500 hover:bg-indigo-600 text-white py-2 px-4 rounded-md mr-2">Django</button>
+                <button onclick="downloadModule('NumPy')" class="bg-indigo-500 hover:bg-indigo-600 text-white py-2 px-4 rounded-md mr-2">NumPy</button>
+                <button onclick="downloadModule('Pandas')" class="bg-indigo-500 hover:bg-indigo-600 text-white py-2 px-4 rounded-md">Pandas</button>
+            </div>
+            <button onclick="toggleModal()" class="bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded-md">Close</button>
+        </div>
+    </div>
+
+    <script>
+        function runCode() {
+            const code = document.getElementById('editor').value;
+            const outputDiv = document.getElementById('output');
+            const outputContainer = document.getElementById('output-div');
+            const editorDiv = document.getElementById('code-editor');
+
+            // Clear previous output
+            outputDiv.innerHTML = '';
+
+            // Hide editor and show output full screen
+            editorDiv.classList.add('hidden');
+            outputContainer.classList.remove('hidden'); // Show output div
+
+            try {
+                // Redirect output to the output div using Brython's stdout
+                __BRYTHON__.stdout = {
+                    write: function(data) {
+                        outputDiv.innerHTML += data.replace(/\n/g, "<br>");
+                    }
+                };
+
+                // Run the code using Brython (Python to JS conversion)
+                eval(__BRYTHON__.python_to_js(code));
+            } catch (error) {
+                // If there's any error, show it in red in the output div
+                outputDiv.innerHTML = '<span style="color:red;">Error: ' + error + '</span>';
+            }
+        }
+
+        function closeOutput() {
+            const outputContainer = document.getElementById('output-div');
+            const editorDiv = document.getElementById('code-editor');
+
+            // Hide output and return to the editor full screen
+            outputContainer.classList.add('hidden');
+            editorDiv.classList.remove('hidden'); // Show the editor again
+        }
+
+        function updateLineNumbers() {
+            const editor = document.getElementById('editor');
+            const lineNumbers = document.getElementById('line-numbers');
+
+            // Split the text into lines
+            const lines = editor.value.split('\n').length;
+
+            // Create line number spans
+            lineNumbers.innerHTML = '';
+            for (let i = 1; i <= lines; i++) {
+                lineNumbers.innerHTML += `<span>${i}</span>`;
+            }
+        }
+
+        function adjustHeight() {
+            const editor = document.getElementById('editor');
+            const lineNumbers = document.getElementById('line-numbers');
+
+            // Set the height of the textarea to match its scroll height
+            editor.style.height = 'auto'; // Reset height to auto to measure scroll height
+            editor.style.height = editor.scrollHeight + 'px'; // Set height to scroll height
+            lineNumbers.style.height = editor.scrollHeight + 'px'; // Match line numbers height
+        }
+
+        function toggleModal() {
+            const modal = document.getElementById('modal');
+            modal.style.display = modal.style.display === 'block' ? 'none' : 'block';
+        }
+
+        function downloadModule(moduleName) {
+            // Logic to handle module download (e.g., show a message)
+            alert(`Downloading module: ${moduleName}`);
+        }
+
+        // Initialize line numbers and adjust height
+        updateLineNumbers();
+        adjustHeight();
+    </script>
+</body>
+</html>
