@@ -3,21 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Python Code Editor</title>
-    <!-- Tailwind CSS for styling -->
-    
+    <title>Python Code Editor with Workspace</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Brython for Python in the browser -->
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/brython@3.9.5/brython.min.js"></script>
-    <!-- Font Awesome for icons -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/js/all.min.js"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Handlee&display=swap');
-        body {
-            font-family: "Handlee", cursive;
-        }
-
-        /* Custom styles for line numbers */
         .editor-container {
             display: flex;
             height: 100%; /* Ensure it takes full height */
@@ -32,19 +22,13 @@
             width: 50px; /* Fixed width for line numbers */
             font-family: monospace; /* Monospace font for line numbers */
         }
-        .line-numbers span {
-            display: block; /* Display line numbers vertically */
-            height: 1em; /* Set height for each line number */
-        }
         textarea {
-
             resize: none; /* Disable textarea resizing */
-            width: 100%; /* Full width */
+            width: 100%; /* Full width minus line numbers */
             height: auto; /* Allow height to adjust automatically */
             overflow: hidden; /* Hide overflow */
             background-color: #1f2937; /* Match editor background */
         }
-        /* Modal styles */
         .modal {
             display: none; /* Hidden by default */
             position: fixed;
@@ -65,68 +49,104 @@
             max-width: 600px; /* Max width */
             border-radius: 8px; /* Rounded corners */
         }
-
-textarea {
-  font-family: "Playwrite DE Grund", cursive;
-           width: 100%; /* Full width */
-            height: auto; /* Allow height to adjust automatically */
-            overflow: hidden; /* Hide overflow */
-            background-color: #1f2937; /* Match editor ba
-}
+        #output-div {
+            position: fixed; /* Fixed positioning for full-screen effect */
+            inset: 0; /* Cover entire viewport */
+            background-color: rgba(0, 0, 0, 0.9); /* Dark background */
+            z-index: 40; /* Behind modal */
+            display: none; /* Initially hidden */
+            flex-direction: column; /* Column layout */
+        }
+        #run-button {
+            margin-bottom: 10px; /* Space below the button */
+        }
+        .file-tab {
+            display: inline-flex;
+            align-items: center;
+            padding: 5px 10px;
+            background-color: #2d3748;
+            border-radius: 4px;
+            margin-right: 5px;
+            cursor: pointer;
+        }
+        .file-tab.active {
+            background-color: #4a5568; /* Active tab color */
+        }
+        #tabs-container {
+            padding: 10px;
+            background-color: #2d3748;
+        }
     </style>
 </head>
-<body onload="brython()" class="bg-gray-900 text-white min-h-screen flex flex-col">
+<body onload="brython(); loadFiles();" class="bg-gray-900 text-white min-h-screen flex flex-col">
 
     <!-- Header -->
     <div class="w-full bg-gray-800 p-4 flex justify-between items-center">
-        <span class="text-xl font-semibold">Py2Droid </span>
-        <!-- Three-dot menu -->
-        <button id="menu-button" onclick="toggleModal()" class="text-white text-2xl">
+        <span class="text-xl font-semibold">Py2Vision</span>
+        <button id="menu-button" onclick="toggleModal('file-modal')" class="text-white text-2xl">
             <i class="fas fa-ellipsis-v"></i>
         </button>
     </div>
 
-    <!-- Output Div (Hidden by Default) -->
-    <div id="output-div" class="fixed inset-0 bg-black text-white p-4 hidden flex-col">
-        <!-- Output Header with Close Button -->
+    <!-- Tabs Container -->
+    <div id="tabs-container" class="flex overflow-x-auto">
+        <button id="new-file-button" class="file-tab bg-green-500" onclick="toggleModal('new-file-modal')">
+            <i class="fas fa-plus"></i> New File
+        </button>
+    </div>
+
+    <!-- Output Div (Initially Hidden) -->
+    <div id="output-div">
         <div class="w-full flex justify-between items-center p-2">
             <h2 class="text-lg font-semibold">Output:</h2>
             <button id="close-output" class="text-red-500 text-2xl" onclick="closeOutput()">
                 <i class="fas fa-times"></i>
             </button>
         </div>
-
-        <!-- Output Content Area -->
         <div id="output" class="w-full h-full bg-gray-900 text-green-500 p-4 rounded-md font-mono overflow-y-auto border border-gray-700"></div>
     </div>
 
     <!-- Editor Div (Code Area) Full-Screen -->
-    <div id="code-editor" class="w-full h-600 flex flex-col">
-        <!-- Run Button -->
+    <div id="code-editor" class="w-full h-800 flex flex-col">
         <div class="bg-gray-800 p-4 flex justify-center">
             <button id="run-button" onclick="runCode()" class="bg-indigo-500 hover:bg-indigo-600 text-white py-2 px-6 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
                 Run Code
             </button>
         </div>
-
-      
+        <div class="flex-1 p-4 editor-container">
+            <div id="line-numbers" class="line-numbers"></div>
+            <textarea id="editor" class="bg-gray-800 text-white p-4 rounded-md font-mono border border-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Write your Python code here..." oninput="updateCode()"></textarea>
+        </div>
     </div>
 
-    <!-- Modal for Downloading Modules -->
-    <div id="modal" class="modal">
+    <!-- Modal for New File Creation -->
+    <div id="new-file-modal" class="modal">
         <div class="modal-content">
-            <span class="text-xl font-semibold mb-2">Download Modules</span>
-            <div class="mb-4">
-                <button onclick="downloadModule('Flask')" class="bg-indigo-500 hover:bg-indigo-600 text-white py-2 px-4 rounded-md mr-2">Flask</button>
-                <button onclick="downloadModule('Django')" class="bg-indigo-500 hover:bg-indigo-600 text-white py-2 px-4 rounded-md mr-2">Django</button>
-                <button onclick="downloadModule('NumPy')" class="bg-indigo-500 hover:bg-indigo-600 text-white py-2 px-4 rounded-md mr-2">NumPy</button>
-                <button onclick="downloadModule('Pandas')" class="bg-indigo-500 hover:bg-indigo-600 text-white py-2 px-4 rounded-md">Pandas</button>
+            <span class="text-xl font-semibold mb-2">Create New File</span>
+            <input type="text" id="new-file-name" placeholder="Enter file name (with .py extension)" class="border border-gray-600 rounded-md p-2 w-full mb-4">
+            <div class="flex justify-end">
+                <button onclick="createFile()" class="bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-md">Create</button>
+                <button onclick="toggleModal('new-file-modal')" class="bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded-md ml-2">Cancel</button>
             </div>
-            <button onclick="toggleModal()" class="bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded-md">Close</button>
+        </div>
+    </div>
+
+    <!-- Modal for Delete Confirmation -->
+    <div id="delete-file-modal" class="modal">
+        <div class="modal-content">
+            <span class="text-xl font-semibold mb-2">Delete File</span>
+            <p>Are you sure you want to delete <span id="delete-file-name"></span>?</p>
+            <div class="flex justify-end">
+                <button id="confirm-delete" class="bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded-md">Delete</button>
+                <button onclick="toggleModal('delete-file-modal')" class="bg-gray-500 hover:bg-gray-600 text-white py-2 px-4 rounded-md ml-2">Cancel</button>
+            </div>
         </div>
     </div>
 
     <script>
+        let currentFile = 'untitled.py';
+        let files = {};
+
         function runCode() {
             const code = document.getElementById('editor').value;
             const outputDiv = document.getElementById('output');
@@ -136,9 +156,9 @@ textarea {
             // Clear previous output
             outputDiv.innerHTML = '';
 
-            // Hide editor and show output full screen
-            editorDiv.classList.add('hidden');
-            outputContainer.classList.remove('hidden'); // Show output div
+            // Show output full screen
+            outputContainer.style.display = 'flex'; // Show output div
+            editorDiv.classList.add('hidden'); // Hide editor
 
             try {
                 // Redirect output to the output div using Brython's stdout
@@ -161,30 +181,96 @@ textarea {
             const editorDiv = document.getElementById('code-editor');
 
             // Hide output and return to the editor full screen
-            outputContainer.classList.add('hidden');
+            outputContainer.style.display = 'none'; // Hide output div
             editorDiv.classList.remove('hidden'); // Show the editor again
         }
 
-      
-
-     
-
-  
-        
-
-        function toggleModal() {
-            const modal = document.getElementById('modal');
+        function toggleModal(modalId) {
+            const modal = document.getElementById(modalId);
             modal.style.display = modal.style.display === 'block' ? 'none' : 'block';
         }
 
-        function downloadModule(moduleName) {
-            // Logic to handle module download (e.g., show a message)
-            alert(`Downloading module: ${moduleName}`);
+        function createFile() {
+            const fileName = document.getElementById('new-file-name').value;
+            if (fileName.endsWith('.py')) {
+                currentFile = fileName;
+                files[currentFile] = '';
+                document.getElementById('editor').value = '';
+                addFileTab(currentFile);
+                toggleModal('new-file-modal');
+                saveFiles(); // Save to session storage
+            } else {
+                alert('Please enter a valid Python file name with .py extension.');
+            }
         }
 
-        // Initialize line numbers and adjust height
-        updateLineNumbers();
-        adjustHeight();
+        function addFileTab(fileName) {
+            const tabsContainer = document.getElementById('tabs-container');
+            const fileTab = document.createElement('button');
+            fileTab.classList.add('file-tab', 'active');
+            fileTab.textContent = fileName;
+            fileTab.onclick = function() {
+                setCurrentFile(fileName);
+            };
+
+            // Close button for file tab
+            const closeButton = document.createElement('span');
+            closeButton.innerHTML = '&times;';
+            closeButton.onclick = function(e) {
+                e.stopPropagation();
+                confirmDeleteFile(fileName);
+            };
+            fileTab.appendChild(closeButton);
+            tabsContainer.appendChild(fileTab);
+        }
+
+        function confirmDeleteFile(fileName) {
+            document.getElementById('delete-file-name').textContent = fileName;
+            toggleModal('delete-file-modal');
+            document.getElementById('confirm-delete').onclick = function() {
+                deleteFile(fileName);
+            };
+        }
+
+        function deleteFile(fileName) {
+            delete files[fileName];
+            const tabsContainer = document.getElementById('tabs-container');
+            tabsContainer.removeChild(tabsContainer.querySelector(`.file-tab:contains('${fileName}')`));
+            currentFile = 'untitled.py'; // Reset to default file
+            setCurrentFile(currentFile);
+            toggleModal('delete-file-modal');
+            saveFiles(); // Save to session storage
+        }
+
+        function setCurrentFile(fileName) {
+            currentFile = fileName;
+            document.getElementById('editor').value = files[currentFile] || '';
+            document.querySelectorAll('.file-tab').forEach(tab => tab.classList.remove('active'));
+            const activeTab = Array.from(document.querySelectorAll('.file-tab')).find(tab => tab.textContent.includes(fileName));
+            if (activeTab) activeTab.classList.add('active');
+        }
+
+        function updateCode() {
+            files[currentFile] = document.getElementById('editor').value;
+            saveFiles(); // Save to session storage
+        }
+
+        function saveFiles() {
+            sessionStorage.setItem('pythonEditorFiles', JSON.stringify(files));
+        }
+
+        function loadFiles() {
+            const savedFiles = sessionStorage.getItem('pythonEditorFiles');
+            if (savedFiles) {
+                files = JSON.parse(savedFiles);
+                for (const file in files) {
+                    addFileTab(file);
+                }
+                if (Object.keys(files).length > 0) {
+                    setCurrentFile(Object.keys(files)[0]);
+                }
+            }
+        }
     </script>
 </body>
 </html>
